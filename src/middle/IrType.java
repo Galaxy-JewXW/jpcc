@@ -31,6 +31,19 @@ public abstract class IrType {
         return false;
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof IrType irType) {
+            return irType.toString().equals(this.toString());
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return this.toString().hashCode();
+    }
+
     public static class ArrayType extends IrType {
         private final int elementCount;
         private final IrType elementType;
@@ -168,6 +181,11 @@ public abstract class IrType {
         public static final LabelType LABEL = new LabelType();
 
         private LabelType() {
+        }
+
+        @Override
+        public String toString() {
+            return "label";
         }
     }
 }
