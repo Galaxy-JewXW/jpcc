@@ -2,7 +2,6 @@ package middle.symbol;
 
 import middle.InitVal;
 import middle.IrType;
-import middle.llvm.Instruction;
 import middle.llvm.Value;
 
 public class Symbol {

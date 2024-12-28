@@ -2,7 +2,7 @@ package middle.llvm;
 
 import exceptions.SemanticException;
 import middle.IrType;
-import middle.IrType.*;
+import middle.IrType.VoidType;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
@@ -32,14 +32,24 @@ public abstract class Instruction extends User {
         MUL("mul"), // *
         SDIV("sdiv"), // /
         SREM("srem"), // %
+        // 整数类比较
         ICMP_EQ("icmp eq"), // ==
         ICMP_NE("icmp ne"), // !=
         ICMP_SGT("icmp sgt"), // >
         ICMP_SGE("icmp sge"), // >=
         ICMP_SLT("icmp slt"), // <
         ICMP_SLE("icmp sle"), // <=
+        // 浮点数类比较
+        FCMP_EQ("fcmp oeq"),
+        FCMP_NE("fcmp one"),
+        FCMP_OGT("fcmp ogt"),
+        FCMP_OGE("fcmp oge"),
+        FCMP_OLT("fcmp olt"),
+        FCMP_OLE("fcmp ole"),
+        // 其他类型转换
         ZEXT("zext"),
-        TRUNC("trunc"),
+        FPTOSI("fptosi"),
+        SITOFP("sitofp"),
         CALL("call"),
         // 这里把io指令作为call的一种特例提出来看待
         IO("io"),
@@ -88,6 +98,8 @@ public abstract class Instruction extends User {
             super(IrType.VoidType.VOID, OperatorType.STORE, parentBlock, "");
             addOperand(addr);
             addOperand(value);
+            assert addr.getType() instanceof IrType.PointerType;
+            assert value.getType().equals(((IrType.PointerType) addr.getType()).getTargetType());
         }
 
         public Value getAddr() {
@@ -128,6 +140,7 @@ public abstract class Instruction extends User {
     public static class GetElementPtr extends Instruction {
         public GetElementPtr(Value addr, Value index, BasicBlock parentBlock) {
             super(calcType(addr), OperatorType.GEP, parentBlock);
+            assert index.getType().isI32Type();
             addOperand(addr);
             addOperand(index);
         }
@@ -210,6 +223,119 @@ public abstract class Instruction extends User {
             return getType().equals(VoidType.VOID)
                     ? String.format("call void %s", functionCall)
                     : String.format("%s = call %s %s", getName(), getType(), functionCall);
+        }
+    }
+
+    public static class Fptosi extends Instruction {
+        public Fptosi(Value value, IrType targetType, BasicBlock parentBlock) {
+            super(targetType, OperatorType.FPTOSI, parentBlock);
+            assert targetType.isI32Type();
+            assert value.getType().isFloatType();
+            addOperand(value);
+        }
+
+        public Value getOriginValue() {
+            return getOperands().get(0);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = fptosi " + getOriginValue().getType() + " "
+                    + getOriginValue().getName() + " to " +
+                    getType();
+        }
+    }
+
+    public static class Sitofp extends Instruction {
+        public Sitofp(Value value, IrType targetType, BasicBlock parentBlock) {
+            super(targetType, OperatorType.SITOFP, parentBlock);
+            assert targetType.isFloatType();
+            assert value.getType().isI32Type();
+            addOperand(value);
+        }
+
+        public Value getOriginValue() {
+            return getOperands().get(0);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = sitofp " + getOriginValue().getType() + " "
+                    + getOriginValue().getName() + " to " +
+                    getType();
+        }
+    }
+
+    public static class Icmp extends Instruction {
+        private final OperatorType opType;
+
+        public Icmp(Value operand1, OperatorType opType, Value operand2, BasicBlock parentBlock) {
+            super(IrType.IntegerType.i1, opType, parentBlock);
+            assert operand1.getType().isI32Type();
+            assert operand2.getType().isI32Type();
+            addOperand(operand1);
+            addOperand(operand2);
+            this.opType = opType;
+        }
+
+        public Value getOperand1() {
+            return getOperands().get(0);
+        }
+
+        public Value getOperand2() {
+            return getOperands().get(1);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = " + opType + " i32 " + getOperand1().getName()
+                    + ", " + getOperand2().getName();
+        }
+    }
+
+    public static class Fcmp extends Instruction {
+        private final OperatorType opType;
+
+        public Fcmp(Value operand1, OperatorType opType, Value operand2, BasicBlock parentBlock) {
+            super(IrType.IntegerType.i1, opType, parentBlock);
+            assert operand1.getType().isFloatType();
+            assert operand2.getType().isFloatType();
+            addOperand(operand1);
+            addOperand(operand2);
+            this.opType = opType;
+        }
+
+        public Value getOperand1() {
+            return getOperands().get(0);
+        }
+
+        public Value getOperand2() {
+            return getOperands().get(1);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = " + opType + " float " + getOperand1().getName()
+                    + ", " + getOperand2().getName();
+        }
+    }
+
+    public static class Zext extends Instruction {
+        public Zext(Value value, IrType targetType, BasicBlock parentBlock) {
+            super(targetType, OperatorType.ZEXT, parentBlock);
+            assert value.getType().isI1Type() && targetType.isI32Type();
+            addOperand(value);
+        }
+
+        public Value getOriginValue() {
+            return getOperands().get(0);
+        }
+
+        @Override
+        public String toString() {
+            return getName() + " = zext " + getOriginValue().getType() + " "
+                    + getOriginValue().getName() + " to " +
+                    getType();
         }
     }
 }
