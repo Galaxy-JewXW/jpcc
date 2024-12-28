@@ -3,14 +3,19 @@ package middle;
 import antlr.SysY2022BaseVisitor;
 import antlr.SysY2022Parser;
 import exceptions.SemanticException;
-import exceptions.TodoException;
 import middle.InitVal.ArrayInitVal;
 import middle.InitVal.ValueInitVal;
 import middle.IrType.ArrayType;
 import middle.IrType.FloatType;
 import middle.IrType.IntegerType;
 import middle.IrType.VoidType;
-import middle.llvm.*;
+import middle.llvm.BasicBlock;
+import middle.llvm.ConstantValue;
+import middle.llvm.Function;
+import middle.llvm.GlobalVar;
+import middle.llvm.Instruction;
+import middle.llvm.IrModule;
+import middle.llvm.Value;
 import middle.symbol.Symbol;
 import middle.symbol.SymbolTable;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -82,7 +87,6 @@ public class IrVisitor extends SysY2022BaseVisitor<Void> {
             irModule.addGlobalVar(gv);
             address = gv;
         } else {
-            // TODO: 解析局部常值
             Instruction.Alloca alloca = new Instruction.Alloca(irType, curBlock);
             address = alloca;
             if (irType.isI32Type() || irType.isFloatType()) {
@@ -90,7 +94,30 @@ public class IrVisitor extends SysY2022BaseVisitor<Void> {
                 new Instruction.Store(alloca, ((ValueInitVal) initVal).getValue(), curBlock);
             } else if (irType.isArrayType()) {
                 assert initVal instanceof ArrayInitVal;
-                throw new TodoException("TODO");
+                // 将initVal中的所有ValueInitVal展平
+                ArrayList<ValueInitVal> flattened = ((ArrayInitVal) initVal).getFlattenedInitVals();
+                int[] strides = new int[dimensions.size()];
+                int stride = 1;
+                for (int i = dimensions.size() - 1; i >= 0; i--) {
+                    strides[i] = stride;
+                    stride *= dimensions.get(i);
+                }
+                for (int i = 0; i < flattened.size(); i++) {
+                    ValueInitVal val = flattened.get(i);
+                    int remaining = i;
+                    ArrayList<Integer> indices = new ArrayList<>();
+                    for (int j = 0; j < dimensions.size(); j++) {
+                        int idx = remaining / strides[j];
+                        indices.add(idx);
+                        remaining %= strides[j];
+                    }
+                    Value ptr = address;
+                    for (int idx : indices) {
+                        ptr = new Instruction.GetElementPtr(ptr,
+                                new ConstantValue.ConstantInt(idx), curBlock);
+                    }
+                    new Instruction.Store(ptr, val.getValue(), curBlock);
+                }
             }
         }
         // 向符号表中插入符号
@@ -103,7 +130,20 @@ public class IrVisitor extends SysY2022BaseVisitor<Void> {
     @Override
     public Void visitVarDef(SysY2022Parser.VarDefContext ctx) {
         // TODO: 解析普通变量定义
-        throw new TodoException("TODO: visitVarDef");
+        IrType irType = switch (ctx.type) {
+            case "int" -> IntegerType.i32;
+            case "float" -> FloatType.f32;
+            default -> throw new SemanticException("Illegal type: " + ctx.type);
+        };
+        ArrayList<Integer> dimensions = new ArrayList<>();
+        for (SysY2022Parser.ConstExpContext constExpContext : ctx.constExp()) {
+            int dim = (int) Calculator.evalExp(constExpContext.addExp(), curSymbolTable);
+            dimensions.add(dim);
+        }
+        for (int i = dimensions.size() - 1; i >= 0; i--) {
+            irType = new ArrayType(dimensions.get(i), irType);
+        }
+        return null;
     }
 
     @Override
@@ -148,7 +188,6 @@ public class IrVisitor extends SysY2022BaseVisitor<Void> {
             curSymbolTable.put(new Symbol(argument.first, argument.second, false, null, address));
         }
         irModule.addFunction(function);
-        // TODO: visitBlock
         visit(ctx.block());
         return null;
     }

@@ -2,6 +2,10 @@ package middle.llvm;
 
 import exceptions.SemanticException;
 import middle.IrType;
+import middle.IrType.*;
+
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 public abstract class Instruction extends User {
 
@@ -122,7 +126,7 @@ public abstract class Instruction extends User {
     }
 
     public static class GetElementPtr extends Instruction {
-        public GetElementPtr(Value addr, BasicBlock parentBlock, Value index) {
+        public GetElementPtr(Value addr, Value index, BasicBlock parentBlock) {
             super(calcType(addr), OperatorType.GEP, parentBlock);
             addOperand(addr);
             addOperand(index);
@@ -173,4 +177,39 @@ public abstract class Instruction extends User {
         }
     }
 
+    public static class Call extends Instruction {
+        private Call(Function calledFunction, ArrayList<Value> parameters, BasicBlock parentBlock) {
+            super(calledFunction.getReturnType(), OperatorType.CALL, parentBlock, "");
+            addOperand(calledFunction);
+            for (Value param : parameters) {
+                addOperand(param);
+            }
+            if (!calledFunction.getReturnType().equals(VoidType.VOID)) {
+                setName(IrData.getVarName());
+            }
+        }
+
+        public Function getCalledFunction() {
+            return (Function) getOperands().get(0);
+        }
+
+        public ArrayList<Value> getParameters() {
+            return new ArrayList<>(getOperands().subList(1, getOperands().size()));
+        }
+
+        public String getCallee() {
+            String paramInfo = getParameters().stream()
+                    .map(param -> param.getType() + " " + param.getName())
+                    .collect(Collectors.joining(", "));
+            return String.format("%s(%s)", getCalledFunction().getName(), paramInfo);
+        }
+
+        @Override
+        public String toString() {
+            String functionCall = getCallee();
+            return getType().equals(VoidType.VOID)
+                    ? String.format("call void %s", functionCall)
+                    : String.format("%s = call %s %s", getName(), getType(), functionCall);
+        }
+    }
 }

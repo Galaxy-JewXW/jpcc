@@ -156,6 +156,11 @@ public abstract class IrType {
         public boolean isVoidType() {
             return true;
         }
+
+        @Override
+        public String toString() {
+            return "void";
+        }
     }
 
     // 占位类型
