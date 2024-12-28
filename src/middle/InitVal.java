@@ -70,9 +70,15 @@ public abstract class InitVal {
     public static class ArrayInitVal extends InitVal {
         // arrayInitVal是多个initVal的集合，可用于一维或多维数组
         private final ArrayList<InitVal> initVals = new ArrayList<>();
+        private final ArrayList<ValueInitVal> flattenedInitVals;
 
-        public ArrayInitVal(IrType irType) {
+        public ArrayInitVal(IrType irType, ArrayList<ValueInitVal> flattenedInitVals) {
             super(irType);
+            this.flattenedInitVals = new ArrayList<>(flattenedInitVals);
+        }
+
+        public ArrayList<ValueInitVal> getFlattenedInitVals() {
+            return new ArrayList<>(flattenedInitVals);
         }
 
         public static ArrayInitVal parseArrayInitVal(
@@ -88,7 +94,7 @@ public abstract class InitVal {
             if (!(irType instanceof IrType.ArrayType arrayType)) {
                 throw new SemanticException(irType.toString() + " is not an array type");
             }
-            ArrayInitVal arrayInitVal = new ArrayInitVal(irType);
+            ArrayInitVal arrayInitVal = new ArrayInitVal(irType, flattened);
             int dimLength = arrayType.getElementCount();
             int length = flattened.size() / dimLength;
             if (length == 1) {

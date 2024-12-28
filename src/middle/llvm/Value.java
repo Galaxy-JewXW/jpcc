@@ -7,7 +7,7 @@ import java.util.HashSet;
 public class Value {
     private final IrType type;
     private final HashSet<User> users = new HashSet<>();
-    private final String name;
+    private String name;
 
     public Value(String name, IrType type) {
         this.name = name;
@@ -16,6 +16,10 @@ public class Value {
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public IrType getType() {
