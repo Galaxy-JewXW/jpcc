@@ -1,0 +1,5 @@
+const int a = 3;
+void foo(int a, int b) {
+    const int b1 = 8;
+    return;
+}
